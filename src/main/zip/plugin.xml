@@ -1,37 +1,59 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<plugin xmlns="http://www.urbancode.com/PluginXMLSchema_v1"
-        xmlns:server="http://www.urbancode.com/PluginServerXMLSchema_v1"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <header>
-    <identifier id="com.urbancode.air.plugin.helloworld" version="@API_VERSION@" name="Hello World"/>
-    <description>The Hello World plugin echoes out "Hello World"</description>
-    <tag>Template/Hello World</tag>
-  </header>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+    © Copyright IBM Corporation 2016, 2017.
+    This is licensed under the following license.
+    The Eclipse Public 1.0 License (http://www.eclipse.org/legal/epl-v10.html)
+    U.S. Government Users Restricted Rights:  Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+-->
 
-  <step-type name="Hello World">
-    <description>Echo out a "Hello World" style message</description>
+<plugin xmlns="http://www.urbancode.com/PluginXMLSchema_v1" xmlns:server="http://www.urbancode.com/PluginServerXMLSchema_v1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <header>
+    <identifier id="com.urbancode.air.plugin.slack-file" name="slack-file" version="1"/>
+    <description>
+       Plugin for sending file to Slack.
+  </description>
+    <tag>SendFile/Slack</tag>
+  </header>
+  <step-type name="Post file to Slack">
+    <description>
+      Send a file to a Slack channel.
+  </description>
     <properties>
-      <property name="name">
-        <property-ui type="textBox"
-                     label="Name"
-                     description="The name of the person you wish to say 'Hello' to."/>
+      <property name="webhook" required="true">
+        <property-ui description="The Incoming WebHook URL that will accept external messages into Slack." label="Incoming WebHook" type="textBox"/>
+      </property>
+      <property name="token" required="true">
+        <property-ui description="The Incoming token URL that will accept external messages into Slack." label="Slack Token" type="textBox"/>
+      </property>
+      <property name="username">
+        <property-ui default-value="DevOps Bot" description="A custom name overriding the default defined in the webhook configuration" label="Username" type="textBox"/>
+      </property>
+      <property name="channels" required="true">
+        <property-ui description="Your public channels or usernames within Slack where UrbanCode Deploy messages will be sent. The WebHook must have access to this channels. Separate each channel or username with a new line or comma." label="Channels" type="textAreaBox"/>
+      </property>
+      <property name="fileName" required="true">
+         <property-ui type="textBox" label="Compare FileName" 
+             description="the name of file." 
+             default-value="${p?:environment/compareFileName}"/>
+      </property>
+      <property name="filePath" required="true">
+         <property-ui type="textBox" label="Compare Result Path" 
+             description="the name of file." 
+             default-value="${p?:environment/compareResultPath}"/>
       </property>
     </properties>
-    <post-processing>
-      <![CDATA[
+    <post-processing><![CDATA[
         if (properties.get("exitCode") != 0) {
             properties.put(new java.lang.String("Status"), new java.lang.String("Failure"));
         }
         else {
             properties.put("Status", "Success");
         }
-     ]]>
-    </post-processing>
-
+     ]]></post-processing>
     <command program="${GROOVY_HOME}/bin/groovy">
       <arg value="-cp"/>
-      <arg path="classes:lib/groovy-plugin-utils-1.0.jar"/>
-      <arg file="helloworld.groovy"/>
+      <arg path="classes:lib/commons-collections-3.0.jar:lib/http-builder-0.7.1.jar:lib/httpcore-4.4.6.jar:lib/json-lib-2.4-jdk15.jar:lib/commons-logging-1.1.3.jar:lib/httpclient-4.5.2.jar:lib/httpmime-4.2.6.jar:lib/xml-resolver-1.2.jar"/>
+      <arg file="uploadFileToSlack.groovy"/>
       <arg file="${PLUGIN_INPUT_PROPS}"/>
       <arg file="${PLUGIN_OUTPUT_PROPS}"/>
     </command>

@@ -1,14 +1,24 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<plugin-upgrade
-        xmlns="http://www.urbancode.com/UpgradeXMLSchema_v1"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+    © Copyright IBM Corporation 2016, 2017.
+    This is licensed under the following license.
+    The Eclipse Public 1.0 License (http://www.eclipse.org/legal/epl-v10.html)
+    U.S. Government Users Restricted Rights:  Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+-->
 
-  <migrate to-version="2">
-    <migrate-command name="Hello World">
-      <migrate-properties>
-        <!-- Adding a new property always requires the 'default' attribute -->
-        <migrate-property name="name" default="World"/>
-      </migrate-properties>
-    </migrate-command>
-  </migrate>
+<plugin-upgrade xmlns="http://www.urbancode.com/UpgradeXMLSchema_v1" xmlns:server="http://www.urbancode.com/PluginServerXMLSchema_v1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <!-- The purpose of plugin.xml is to provide upgrade paths when the plugin version is changed.
+       If the upgrade paths are specified correctly, users will be upgraded to the new version
+       without interruption. -->
+    <migrate to-version="1">
+    </migrate>
+    <migrate to-version="1">
+        <migrate-command name="Post File to Slack" old="Post Custom File to Slack">
+            <migrate-properties>
+                <migrate-property name="channels" old="channel" default="" />
+            </migrate-properties>
+        </migrate-command>
+    </migrate>
+ <migrate to-version="1">
+ </migrate>
 </plugin-upgrade>

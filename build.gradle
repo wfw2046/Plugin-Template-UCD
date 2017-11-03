@@ -1,3 +1,9 @@
+/**
+ * (c) Copyright IBM Corporation 2017.
+ * This is licensed under the following license.
+ * The Eclipse Public 1.0 License (http://www.eclipse.org/legal/epl-v10.html)
+ * U.S. Government Users Restricted Rights:  Use, duplication or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+ */
 /* The Groovy plugin for Gradle assumes the following layout
  * src/main/java
  * src/main/resources
@@ -27,13 +33,18 @@
  *     }
  * }
  */
+
 import org.apache.tools.ant.filters.ReplaceTokens
+
+//def pluginName="Slack-UCD"
+def pluginVersion = project.hasProperty('pluginVersion') ? project.getProperty('pluginVersion') : 'dev'
 
 apply plugin: 'groovy'
 
 defaultTasks 'distPlugin'
 
 def buildLocaleDir = 'build/locale'
+def buildUtilDir   = 'build/util'
 
 configurations {
     // Remove the groovy-all jar from runtime dependencies
@@ -42,42 +53,117 @@ configurations {
 
 repositories {
     mavenCentral()
+    maven {
+        url "https://public.dhe.ibm.com/software/products/UrbanCode/maven2/"
+    }
 }
 
 dependencies {
     // groovy-plugin-utils pulls down groovy-all as a transitive dependency for the 'compile' configuration
-    compile 'com.ibm.urbancode.plugins:groovy-plugin-utils:1.0'
+    compile 'com.ibm.urbancode.plugins:groovy-plugin-utils:+'
+    compile 'com.ibm.urbancode.util:i18n-scraper:+'
+     compile group: 'org.apache.httpcomponents', name: 'httpcore', version: '4.4.6'
+    compile group: 'org.apache.commons', name: 'commons-collections4', version: '4.1'
+    compile group: 'org.codehaus.groovy.modules.http-builder', name: 'http-builder', version: '0.7.1'
+    compile group: 'commons-logging', name: 'commons-logging', version: '1.2'
+    compile group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.2'
+    compile group: 'org.apache.httpcomponents', name: 'httpmime', version: '4.2.6'
+    compile group: 'xml-resolver', name: 'xml-resolver', version: '1.2'
+    runtime files('libs/json-lib-2.4-jdk15.jar')
+    //compile 'org.codehaus.groovy:groovy-json:2.4.0'
+
     // This compiles the i18n-scraper script
     compile localGroovy()
-//    compile group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.3.6'
-//    testCompile group: 'junit', name: 'junit', version: '4.11'
+    testCompile 'junit:junit:4.11'
+    testCompile 'org.hamcrest:hamcrest-core:1.3'
 }
 
 sourceSets {
     main {
         groovy {
-            srcDirs = ['src/main/groovy', 'src/main/zip', 'src/main/util']
+            srcDirs = ['src/main/groovy', 'src/main/zip', "${buildDir}/util"]
+        }
+    }
+    zip {
+        groovy {
+            srcDirs = ['src/main/zip']
+        }
+    }
+    classes {
+        groovy {
+            srcDirs = ['src/main/groovy', "${buildDir}/util"]
         }
     }
 }
 
+compileJava {
+    dependsOn 'extractGPU', 'copyi18n'
+}
+compileGroovy {
+    include "i18n-scraper.groovy"
+}
+
 task copyDeps(type: Copy) {
-    from configurations.runtime
     into 'lib'
+    copy {
+        from configurations.runtime
+        include { target ->
+            return target.file.path.contains("com.ibm.urbancode")
+        }
+        into 'lib'
+        rename { fileName ->
+            stripVersion(fileName)
+        }
+    }
+    copy {
+        from configurations.runtime
+        exclude { target ->
+            return target.file.path.contains("com.ibm.urbancode")
+        }
+        into 'lib'
+    }
+}
+
+task extractGPU(type: Copy) {
+    def zipFile = file('lib/groovy-plugin-utils.jar')
+    def outputDir = file("${buildDir}/util")
+
+    from zipTree(zipFile)
+    into outputDir
+}
+
+task copyi18n(type: Copy) {
+    def i18nFile = file('lib/i18n-scraper.groovy')
+    def outputDir = file("${buildDir}/util")
+
+    from i18nFile
+    into outputDir
 }
 
 task distPlugin(type: Zip, dependsOn: ['compileGroovy', 'gatherI18n']) {
-    def releaseVersion = apiVersion + "." + pluginVersion
-    from(sourceSets.main.groovy.srcDirs) {
-        filter(ReplaceTokens, tokens: [API_VERSION: apiVersion, RELEASE_VERSION: releaseVersion])
+    from(sourceSets.zip.groovy.srcDirs) {
+        filter(ReplaceTokens, tokens: [RELEASE_VERSION: pluginVersion])
     }
+
     into('lib') {
         from copyDeps
+        exclude 'i18n-scraper.groovy'
+        exclude 'groovy-plugin-utils.jar'
+        exclude 'groovy-all-*.jar'
+        exclude 'gson-*.jar'
     }
     into('locale') {
         from buildLocaleDir
     }
-    archiveName = "${pluginName}-${releaseVersion}.zip"
+    into('classes') {
+        from sourceSets.classes.groovy.srcDirs
+        exclude 'META-INF', 'i18n-scraper.groovy'
+    }
+    if (pluginVersion) {
+        archiveName = "${pluginName}-v${pluginVersion}.zip"
+    } else {
+        archiveName = "${pluginName}-dev.zip"
+    }
 }
 
 task gatherI18n(type: JavaExec) {
@@ -90,3 +176,9 @@ task gatherI18n(type: JavaExec) {
 }
 
 task cleanAll(dependsOn: ['clean', 'cleanCopyDeps', 'cleanDistPlugin', 'cleanGatherI18n'])
+
+String stripVersion(String fileNameWithVersion) {
+    String ext = fileNameWithVersion.substring(fileNameWithVersion.lastIndexOf("."),fileNameWithVersion.length())
+    int end = fileNameWithVersion.lastIndexOf("-"); //assumes that: name-version.ext. Will not work with name-version-SNAPSHOT.ext
+    return fileNameWithVersion.substring(0, end) + ext
+}
